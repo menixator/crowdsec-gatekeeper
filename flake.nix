@@ -103,7 +103,7 @@
 
         packages.${cargoToml.package.name} = pkgs.callPackage mkDerivation { };
 
-        packages."${cargoToml.package.name}-aarch64-unknown-linux-gnu" =
+        cross."aarch64-unknown-linux-gnu"."${cargoToml.package.name}" =
 
           let
             pkgs' = import nixpkgs {
