@@ -13,7 +13,6 @@
     pre-commit-hooks = {
       url = "github:cachix/pre-commit-hooks.nix";
       inputs.nixpkgs.follows = "nixpkgs";
-      inputs.nixpkgs-stable.follows = "nixpkgs";
     };
   };
 
@@ -32,7 +31,6 @@
         };
         cargoToml = builtins.fromTOML (builtins.readFile ./Cargo.toml);
       in
-      with pkgs;
       {
         checks.pre-commit-check = pre-commit-hooks.lib.${system}.run {
           src = ./.;
@@ -45,12 +43,11 @@
           };
         };
 
-        devShells.default = mkShell {
+        devShells.default = pkgs.mkShell {
           name = cargoToml.package.name;
           inputsFrom = [self.packages.${system}.${cargoToml.package.name}];
-          packages = [
+          packages = with pkgs; [
             cargo-bloat
-            toolchain
           ];
 
           shellHook= self.checks.${system}.pre-commit-check.shellHook;
@@ -64,14 +61,14 @@
             lockFile = ./Cargo.lock;
           };
 
-          buildInputs = [
+          buildInputs = with pkgs;[
             openssl
           ];
 
           src = ./.;
 
           
-          nativeBuildInputs = [
+          nativeBuildInputs = with pkgs; [
             pkg-config
           ];
         };
