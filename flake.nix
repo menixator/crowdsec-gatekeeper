@@ -30,6 +30,7 @@
           extensions = [ "rust-src" "rustc" "cargo" "clippy" "rustfmt" "rust-analyzer" ];
           targets = [ "x86_64-unknown-linux-gnu" ];
         };
+        cargoToml = builtins.fromTOML (builtins.readFile ./Cargo.toml);
       in
       with pkgs;
       {
@@ -45,20 +46,34 @@
         };
 
         devShells.default = mkShell {
-          name = "crowdsec-gatekeeper";
+          name = cargoToml.package.name;
+          inputsFrom = [self.packages.${system}.${cargoToml.package.name}];
           packages = [
             cargo-bloat
-          ];
-
-          buildInputs = [
-            pkg-config
-            openssl
-            gcc
-            cmake
             toolchain
           ];
+
           shellHook= self.checks.${system}.pre-commit-check.shellHook;
           env.PRE_COMMIT_COLOR = "never";
+        };
+
+        packages.${cargoToml.package.name} = pkgs.rustPlatform.buildRustPackage {
+          pname = cargoToml.package.name;
+          version = cargoToml.package.version;
+          cargoLock = {
+            lockFile = ./Cargo.lock;
+          };
+
+          buildInputs = [
+            openssl
+          ];
+
+          src = ./.;
+
+          
+          nativeBuildInputs = [
+            pkg-config
+          ];
         };
       }
     );

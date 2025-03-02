@@ -4,10 +4,15 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+async-stream = "0.3.6"
 color-eyre = { version = "0.6.3", features = ["capture-spantrace"] }
+futures = "0.3.31"
 once_cell = "1.20.3"
-time = { version = "0.3.37", features = ["formatting", "macros"] }
-tokio = { version = "1.43.0", features = ["macros", "rt-multi-thread", "tracing"] }
+reqwest = { version = "0.12.12", features = ["json", "rustls-tls"] }
+serde = { version = "1.0.218", features = ["derive"] }
+serde_with = "3.12.0"
+time = { version = "0.3.37", features = ["formatting", "macros", "serde"] }
+tokio = { version = "1.43.0", features = ["macros", "rt-multi-thread", "tracing", "sync"] }
 tracing = "0.1.41"
 tracing-error = "0.2.1"
 tracing-subscriber = { version = "0.3.19", features = ["env-filter", "time", "local-time"] }
