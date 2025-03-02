@@ -48,7 +48,11 @@
         cargoToml = builtins.fromTOML (builtins.readFile ./Cargo.toml);
 
         mkDerivation =
-          { pkgs, rustPlatform }:
+          {
+            pkgs,
+            rustPlatform,
+            openssl,
+          }:
           rustPlatform.buildRustPackage {
             pname = cargoToml.package.name;
             version = cargoToml.package.version;
@@ -57,7 +61,7 @@
             };
 
             buildInputs = with pkgs; [
-              openssl
+              openssl.dev
             ];
 
             src = ./.;
@@ -65,6 +69,13 @@
             nativeBuildInputs = with pkgs; [
               pkg-config
             ];
+
+            env = {
+              OPENSSL_DIR = "${openssl.dev}";
+              OPENSSL_INCLUDE_DIR = "${openssl.dev}/include";
+              OPENSSL_LIB_DIR = "${openssl.out}/lib";
+            };
+
           };
       in
       {
