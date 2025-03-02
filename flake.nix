@@ -16,8 +16,17 @@
     };
   };
 
-  outputs = { self, nixpkgs, rust-overlay, flake-utils, pre-commit-hooks, ... }:
-    flake-utils.lib.eachDefaultSystem (system:
+  outputs =
+    {
+      self,
+      nixpkgs,
+      rust-overlay,
+      flake-utils,
+      pre-commit-hooks,
+      ...
+    }:
+    flake-utils.lib.eachDefaultSystem (
+      system:
       let
         overlays = [ (import rust-overlay) ];
         pkgs = import nixpkgs {
@@ -26,10 +35,37 @@
 
         toolchainFromFile = (pkgs.rust-bin.fromRustupToolchainFile "${self}/rust-toolchain.toml");
         toolchain = toolchainFromFile.override {
-          extensions = [ "rust-src" "rustc" "cargo" "clippy" "rustfmt" "rust-analyzer" ];
+          extensions = [
+            "rust-src"
+            "rustc"
+            "cargo"
+            "clippy"
+            "rustfmt"
+            "rust-analyzer"
+          ];
           targets = [ "x86_64-unknown-linux-gnu" ];
         };
         cargoToml = builtins.fromTOML (builtins.readFile ./Cargo.toml);
+
+        mkDerivation =
+          { pkgs, rustPlatform }:
+          rustPlatform.buildRustPackage {
+            pname = cargoToml.package.name;
+            version = cargoToml.package.version;
+            cargoLock = {
+              lockFile = ./Cargo.lock;
+            };
+
+            buildInputs = with pkgs; [
+              openssl
+            ];
+
+            src = ./.;
+
+            nativeBuildInputs = with pkgs; [
+              pkg-config
+            ];
+          };
       in
       {
         checks.pre-commit-check = pre-commit-hooks.lib.${system}.run {
@@ -45,33 +81,42 @@
 
         devShells.default = pkgs.mkShell {
           name = cargoToml.package.name;
-          inputsFrom = [self.packages.${system}.${cargoToml.package.name}];
+          inputsFrom = [ self.packages.${system}.${cargoToml.package.name} ];
           packages = with pkgs; [
             cargo-bloat
           ];
 
-          shellHook= self.checks.${system}.pre-commit-check.shellHook;
+          shellHook = self.checks.${system}.pre-commit-check.shellHook;
           env.PRE_COMMIT_COLOR = "never";
         };
 
-        packages.${cargoToml.package.name} = pkgs.rustPlatform.buildRustPackage {
-          pname = cargoToml.package.name;
-          version = cargoToml.package.version;
-          cargoLock = {
-            lockFile = ./Cargo.lock;
-          };
+        packages.${cargoToml.package.name} = pkgs.callPackage mkDerivation { };
 
-          buildInputs = with pkgs;[
-            openssl
-          ];
+        packages."${cargoToml.package.name}-aarch64-unknown-linux-gnu" =
 
-          src = ./.;
+          let
+            pkgs' = import nixpkgs {
+              inherit system overlays;
+              crossSystem = {
+                config = "aarch64-unknown-linux-gnu";
+                rustc.config = "aarch64-unknown-linux-gnu";
+              };
+            };
 
-          
-          nativeBuildInputs = with pkgs; [
-            pkg-config
-          ];
-        };
+            toolchainFromFile = (pkgs.rust-bin.fromRustupToolchainFile "${self}/rust-toolchain.toml");
+            toolchain = toolchainFromFile.override {
+              extensions = [
+                "rustc"
+                "cargo"
+              ];
+              targets = [ "aarch64-unknown-linux-gnu" ];
+            };
+            rustPlatform = pkgs'.makeRustPlatform {
+              cargo = toolchain;
+              rustc = toolchain;
+            };
+          in
+          (pkgs'.pkgsCross.aarch64-multiplatform.callPackage mkDerivation { inherit rustPlatform; });
       }
     );
 }
