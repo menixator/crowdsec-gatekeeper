@@ -33,7 +33,7 @@
           inherit system overlays;
         };
 
-        toolchainFromFile = (pkgs.rust-bin.fromRustupToolchainFile "${self}/rust-toolchain.toml");
+        toolchainFromFile = (pkgs.rust-bin.fromRustupToolchainFile ./rust-toolchain.toml);
         toolchain = toolchainFromFile.override {
           extensions = [
             "rust-src"
@@ -101,7 +101,15 @@
           env.PRE_COMMIT_COLOR = "never";
         };
 
-        packages.${cargoToml.package.name} = pkgs.callPackage mkDerivation { };
+        packages.${cargoToml.package.name} =
+
+          let
+            rustPlatform = pkgs.makeRustPlatform {
+              cargo = toolchain;
+              rustc = toolchain;
+            };
+          in
+          pkgs.callPackage mkDerivation { inherit rustPlatform; };
 
         cross."aarch64-unknown-linux-gnu"."${cargoToml.package.name}" =
 
