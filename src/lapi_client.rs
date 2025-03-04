@@ -5,6 +5,7 @@ use std::{
 
 use color_eyre::eyre::Context;
 use reqwest::{header, Client};
+use serde::{ser::SerializeStruct, Serialize};
 use time::OffsetDateTime;
 
 use crate::types::DecisionsResponse;
@@ -66,5 +67,121 @@ impl LapiClient {
             }
 
         }
+    }
+}
+
+#[derive(serde::Serialize)]
+#[serde(untagged)]
+pub enum ScenarioQueryOptions {
+    Containing(String),
+    NotContaining(String),
+}
+
+#[derive(Default, Serialize)]
+pub struct DecisionsStreamOptions {
+    /// If true, means that the remediation component is starting and a full list must be provided
+    pub startup: bool,
+    pub scopes: Vec<String>,
+    pub origins: Vec<String>,
+
+    #[serde(flatten)]
+    #[serde(serialize_with = "serialize_scenarios")]
+    pub scenarios: Vec<ScenarioQueryOptions>,
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn test_if_scenarios_are_serialized_correctly() {
+        assert_eq!(
+            serde_json::to_value(&DecisionsStreamOptions {
+                scenarios: vec![
+                    ScenarioQueryOptions::Containing("hello".to_owned()),
+                    ScenarioQueryOptions::NotContaining("world".to_owned())
+                ],
+                ..Default::default()
+            })
+            .unwrap(),
+            serde_json::json!({
+                "startup": false,
+                "origins": [],
+                "scopes": [],
+                "scenarios_containing": ["hello"],
+                "scenarios_not_containing": ["world"],
+
+            })
+        );
+    }
+}
+
+fn serialize_scenarios<S: serde::Serializer>(
+    scenarios: &Vec<ScenarioQueryOptions>,
+    ser: S,
+) -> Result<S::Ok, S::Error> {
+    let mut struct_ser = ser.serialize_struct("ScenarioQueryOptions", 2)?;
+
+    let (containing, not_containing): (Vec<_>, Vec<_>) = scenarios
+        .iter()
+        .partition(|v| matches!(v, ScenarioQueryOptions::Containing(_)));
+
+    struct_ser.serialize_field("scenarios_containing", &containing)?;
+    struct_ser.serialize_field("scenarios_not_containing", &not_containing)?;
+
+    struct_ser.end()
+}
+
+pub struct DecisionsStreamOptionsBuilder(DecisionsStreamOptions);
+
+impl DecisionsStreamOptionsBuilder {
+    pub fn new() -> Self {
+        Self(DecisionsStreamOptions::default())
+    }
+
+    pub fn from_options(opts: DecisionsStreamOptions) -> Self {
+        Self(opts)
+    }
+
+    pub fn startup(self, startup: bool) -> Self {
+        let Self(mut opts) = self;
+        opts.startup = startup;
+        Self(opts)
+    }
+
+    pub fn scope(self, scope: String) -> Self {
+        let Self(mut opts) = self;
+        opts.scopes.push(scope);
+        Self(opts)
+    }
+
+    pub fn origin(self, origin: String) -> Self {
+        let Self(mut opts) = self;
+        opts.origins.push(origin);
+        Self(opts)
+    }
+
+    pub fn scenario(self, scenario: ScenarioQueryOptions) -> Self {
+        let Self(mut opts) = self;
+        opts.scenarios.push(scenario);
+        Self(opts)
+    }
+
+    pub fn scenario_containing(self, scenario: String) -> Self {
+        let Self(mut opts) = self;
+        opts.scenarios
+            .push(ScenarioQueryOptions::Containing(scenario));
+        Self(opts)
+    }
+
+    pub fn scenario_not_containing(self, scenario: String) -> Self {
+        let Self(mut opts) = self;
+        opts.scenarios
+            .push(ScenarioQueryOptions::NotContaining(scenario));
+        Self(opts)
+    }
+
+    pub fn build(self) -> DecisionsStreamOptions {
+        self.0
     }
 }

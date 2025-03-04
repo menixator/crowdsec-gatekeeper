@@ -15,8 +15,7 @@ pub struct DecisionsResponse {
 pub struct Decision {
     /// the duration of the decisions
     pub duration: String,
-    /// (only relevant for GET ops) the unique id
-    pub id: Option<i64>,
+    pub id: i64,
     /// the origin of the decision : cscli, crowdsec
     pub origin: Origin,
     pub scenario: String,
