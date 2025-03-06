@@ -2,6 +2,7 @@ use std::fmt::write;
 
 use color_eyre::eyre::{eyre, Context};
 use futures::{pin_mut, StreamExt};
+use lapi_client::DecisionsStreamOptions;
 
 mod diagnostics;
 mod lapi_client;
@@ -27,7 +28,10 @@ async fn start() -> Result<(), color_eyre::Report> {
         auth_key,
     )?;
 
-    let stream = client.stream_decisions(std::time::Duration::from_secs(5));
+    let stream = client.stream_decisions(
+        DecisionsStreamOptions::default(),
+        std::time::Duration::from_secs(5),
+    );
 
     pin_mut!(stream);
 

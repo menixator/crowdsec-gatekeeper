@@ -50,6 +50,7 @@ impl LapiClient {
 
     pub fn stream_decisions(
         &self,
+        mut options: DecisionsStreamOptions,
         wait_at_least: Duration,
     ) -> impl futures::Stream<Item = color_eyre::Result<DecisionsResponse>> + use<'_> {
         async_stream::try_stream! {
@@ -64,6 +65,10 @@ impl LapiClient {
                 last_fetched = Some(Instant::now());
                 let decisions = self.get_decisions().await?;
                 yield decisions;
+
+                if options.startup {
+                    options.startup = false;
+                }
             }
 
         }
