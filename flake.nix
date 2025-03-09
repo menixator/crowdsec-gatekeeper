@@ -34,9 +34,9 @@
         };
 
         toolchainFromFile = (pkgs.rust-bin.fromRustupToolchainFile ./rust-toolchain.toml);
+
         toolchain = toolchainFromFile.override {
           extensions = [
-            "rust-src"
             "rustc"
             "cargo"
             "clippy"
@@ -45,6 +45,15 @@
           ];
           targets = [ "x86_64-unknown-linux-gnu" ];
         };
+
+        minimalToolchain = toolchainFromFile.override {
+          extensions = [
+            "rustc"
+            "cargo"
+          ];
+          targets = [ "x86_64-unknown-linux-gnu" ];
+        };
+
         cargoToml = builtins.fromTOML (builtins.readFile ./Cargo.toml);
 
         mkDerivation =
@@ -92,7 +101,14 @@
 
         devShells.default = pkgs.mkShell {
           name = cargoToml.package.name;
-          inputsFrom = [ self.packages.${system}.${cargoToml.package.name} ];
+          inputsFrom =
+            let
+              rustPlatform = pkgs.makeRustPlatform {
+                cargo = toolchain;
+                rustc = toolchain;
+              };
+            in
+            [ (pkgs.callPackage mkDerivation { inherit rustPlatform; }) ];
           packages = with pkgs; [
             cargo-bloat
           ];
@@ -105,8 +121,8 @@
 
           let
             rustPlatform = pkgs.makeRustPlatform {
-              cargo = toolchain;
-              rustc = toolchain;
+              cargo = minimalToolchain;
+              rustc = minimalToolchain;
             };
           in
           pkgs.callPackage mkDerivation { inherit rustPlatform; };
